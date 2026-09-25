@@ -75,37 +75,53 @@ jobs:
 
           tz = os.environ["TIMEZONE"]
           hour = int(os.environ["HOUR"])
-          content = f'''name: UV Alert
 
-          on:
-            schedule:
-              - cron: "0 {hour} * * *"
-                timezone: "{tz}"
-            workflow_dispatch:
+          def github_expression(context, name):
+              return "$" + "{{ " + context + "." + name + " }}"
 
-          permissions:
-            contents: read
-
-          jobs:
-            alert:
-              runs-on: ubuntu-latest
-              timeout-minutes: 5
-              steps:
-                - uses: actions/checkout@v5
-                - uses: actions/setup-python@v6
-                  with:
-                    python-version: "3.11"
-                - run: pip install -r requirements.txt
-                - name: Check UV forecast
-                  env:
-                    LATITUDE: ${{{{ vars.LATITUDE }}}}
-                    LONGITUDE: ${{{{ vars.LONGITUDE }}}}
-                    UV_THRESHOLD: ${{{{ vars.UV_THRESHOLD }}}}
-                    FORECAST_DAYS: ${{{{ vars.FORECAST_DAYS }}}}
-                    TELEGRAM_BOT_TOKEN: ${{{{ secrets.TELEGRAM_BOT_TOKEN }}}}
-                    TELEGRAM_CHAT_ID: ${{{{ secrets.TELEGRAM_CHAT_ID }}}}
-                  run: python src/main.py
-          '''
+          content = "\n".join([
+              "name: UV Alert",
+              "",
+              "on:",
+              "  schedule:",
+              f'    - cron: "0 {hour} * * *"',
+              f'      timezone: "{tz}"',
+              "  workflow_dispatch:",
+              "",
+              "permissions:",
+              "  contents: read",
+              "",
+              "jobs:",
+              "  alert:",
+              "    runs-on: ubuntu-latest",
+              "    timeout-minutes: 5",
+              "    steps:",
+              "      - uses: actions/checkout@v5",
+              "      - uses: actions/setup-python@v6",
+              "        with:",
+              '          python-version: "3.11"',
+              "      - run: pip install -r requirements.txt",
+              "      - name: Check UV forecast",
+              "        env:",
+              "          LATITUDE: __LATITUDE__",
+              "          LONGITUDE: __LONGITUDE__",
+              "          UV_THRESHOLD: __UV_THRESHOLD__",
+              "          FORECAST_DAYS: __FORECAST_DAYS__",
+              "          TELEGRAM_BOT_TOKEN: __TELEGRAM_BOT_TOKEN__",
+              "          TELEGRAM_CHAT_ID: __TELEGRAM_CHAT_ID__",
+              "        run: python src/main.py",
+              "",
+          ])
+          replacements = {
+              "__LATITUDE__": github_expression("vars", "LATITUDE"),
+              "__LONGITUDE__": github_expression("vars", "LONGITUDE"),
+              "__UV_THRESHOLD__": github_expression("vars", "UV_THRESHOLD"),
+              "__FORECAST_DAYS__": github_expression("vars", "FORECAST_DAYS"),
+              "__TELEGRAM_BOT_TOKEN__": github_expression("secrets", "TELEGRAM_BOT_TOKEN"),
+              "__TELEGRAM_CHAT_ID__": github_expression("secrets", "TELEGRAM_CHAT_ID"),
+          }
+          for placeholder, value in replacements.items():
+              content = content.replace(placeholder, value)
           Path(".github/workflows/uv-alert.yml").write_text(content, encoding="utf-8")
           PY
 
