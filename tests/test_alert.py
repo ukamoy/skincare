@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from zoneinfo import ZoneInfo
 
 from main import build_message, is_notification_hour
 from weather import DailyUV, Forecast
@@ -12,5 +13,9 @@ def test_message():
 
 
 def test_notification_hour():
-    assert is_notification_hour("America/Toronto", 8, datetime(2026, 6, 1, 8, 17))
-    assert not is_notification_hour("America/Toronto", 8, datetime(2026, 6, 1, 9, 17))
+    timezone = ZoneInfo("America/Toronto")
+    matching_time = datetime(2026, 6, 1, 8, 17, tzinfo=timezone)
+    other_time = datetime(2026, 6, 1, 9, 17, tzinfo=timezone)
+
+    assert is_notification_hour("America/Toronto", 8, matching_time)
+    assert not is_notification_hour("America/Toronto", 8, other_time)
