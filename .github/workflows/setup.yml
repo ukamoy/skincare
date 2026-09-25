@@ -34,11 +34,19 @@ jobs:
           if missing:
               fail("Missing GitHub Actions variables: " + ", ".join(missing))
 
-          try:
-              lat = float(coordinates["LATITUDE"])
-              lon = float(coordinates["LONGITUDE"])
-          except ValueError:
-              fail("LATITUDE and LONGITUDE must be decimal numbers.")
+          def parse_coordinate(name):
+              value = coordinates[name]
+              try:
+                  return float(value)
+              except ValueError:
+                  masked_format = "".join("0" if char.isdigit() else char for char in value)
+                  fail(
+                      f"{name} must be a decimal number without quotes, labels, or units. "
+                      f"Received format: {masked_format!r}"
+                  )
+
+          lat = parse_coordinate("LATITUDE")
+          lon = parse_coordinate("LONGITUDE")
 
           if not -90 <= lat <= 90: fail("LATITUDE must be between -90 and 90.")
           if not -180 <= lon <= 180: fail("LONGITUDE must be between -180 and 180.")
