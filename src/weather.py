@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from datetime import date
 from typing import Any
+
 import requests
 
 URL = "https://api.open-meteo.com/v1/forecast"
