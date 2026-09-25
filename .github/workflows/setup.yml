@@ -1,0 +1,122 @@
+name: Setup UV Alert Schedule
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  configure:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Resolve timezone and validate settings
+        id: config
+        env:
+          LATITUDE: ${{ vars.LATITUDE }}
+          LONGITUDE: ${{ vars.LONGITUDE }}
+          NOTIFICATION_HOUR: ${{ vars.NOTIFICATION_HOUR }}
+        run: |
+          python - <<'PY'
+          import json, os, sys, urllib.parse, urllib.request
+
+          def fail(msg):
+              print(f"::error::{msg}")
+              sys.exit(1)
+
+          try:
+              lat = float(os.environ["LATITUDE"])
+              lon = float(os.environ["LONGITUDE"])
+          except (KeyError, ValueError):
+              fail("LATITUDE and LONGITUDE must be valid numbers.")
+
+          if not -90 <= lat <= 90: fail("LATITUDE must be between -90 and 90.")
+          if not -180 <= lon <= 180: fail("LONGITUDE must be between -180 and 180.")
+
+          hour = os.environ.get("NOTIFICATION_HOUR", "").strip()
+          if not hour.isdigit() or not 0 <= int(hour) <= 23:
+              fail("NOTIFICATION_HOUR must be an integer from 0 to 23.")
+
+          query = urllib.parse.urlencode({
+              "latitude": lat, "longitude": lon,
+              "daily": "uv_index_max", "forecast_days": 1, "timezone": "auto"
+          })
+          try:
+              with urllib.request.urlopen(
+                  f"https://api.open-meteo.com/v1/forecast?{query}", timeout=20
+              ) as response:
+                  payload = json.load(response)
+          except Exception as exc:
+              fail(f"Timezone lookup failed: {exc}")
+
+          if payload.get("error"):
+              fail(payload.get("reason", "Open-Meteo returned an error."))
+          timezone = payload.get("timezone")
+          if not timezone:
+              fail("Open-Meteo did not return a timezone.")
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
+              out.write(f"timezone={timezone}\n")
+              out.write(f"hour={int(hour)}\n")
+          print(f"Resolved timezone: {timezone}")
+          print(f"Notification time: {int(hour):02d}:00 local time")
+          PY
+
+      - name: Generate daily workflow
+        env:
+          TIMEZONE: ${{ steps.config.outputs.timezone }}
+          HOUR: ${{ steps.config.outputs.hour }}
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+
+          tz = os.environ["TIMEZONE"]
+          hour = int(os.environ["HOUR"])
+          content = f'''name: UV Alert
+
+          on:
+            schedule:
+              - cron: "0 {hour} * * *"
+                timezone: "{tz}"
+            workflow_dispatch:
+
+          permissions:
+            contents: read
+
+          jobs:
+            alert:
+              runs-on: ubuntu-latest
+              timeout-minutes: 5
+              steps:
+                - uses: actions/checkout@v5
+                - uses: actions/setup-python@v6
+                  with:
+                    python-version: "3.11"
+                - run: pip install -r requirements.txt
+                - name: Check UV forecast
+                  env:
+                    LATITUDE: ${{{{ vars.LATITUDE }}}}
+                    LONGITUDE: ${{{{ vars.LONGITUDE }}}}
+                    UV_THRESHOLD: ${{{{ vars.UV_THRESHOLD }}}}
+                    FORECAST_DAYS: ${{{{ vars.FORECAST_DAYS }}}}
+                    TELEGRAM_BOT_TOKEN: ${{{{ secrets.TELEGRAM_BOT_TOKEN }}}}
+                    TELEGRAM_CHAT_ID: ${{{{ secrets.TELEGRAM_CHAT_ID }}}}
+                  run: python src/main.py
+          '''
+          Path(".github/workflows/uv-alert.yml").write_text(content, encoding="utf-8")
+          PY
+
+      - name: Commit generated workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/workflows/uv-alert.yml
+          if git diff --cached --quiet; then
+            echo "Schedule is already up to date."
+            exit 0
+          fi
+          git commit -m "chore: update UV alert schedule"
+          git push
