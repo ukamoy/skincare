@@ -26,11 +26,19 @@ jobs:
               print(f"::error::{msg}")
               sys.exit(1)
 
+          coordinates = {
+              "LATITUDE": os.environ.get("LATITUDE", "").strip(),
+              "LONGITUDE": os.environ.get("LONGITUDE", "").strip(),
+          }
+          missing = [name for name, value in coordinates.items() if not value]
+          if missing:
+              fail("Missing GitHub Actions variables: " + ", ".join(missing))
+
           try:
-              lat = float(os.environ["LATITUDE"])
-              lon = float(os.environ["LONGITUDE"])
-          except (KeyError, ValueError):
-              fail("LATITUDE and LONGITUDE must be valid numbers.")
+              lat = float(coordinates["LATITUDE"])
+              lon = float(coordinates["LONGITUDE"])
+          except ValueError:
+              fail("LATITUDE and LONGITUDE must be decimal numbers.")
 
           if not -90 <= lat <= 90: fail("LATITUDE must be between -90 and 90.")
           if not -180 <= lon <= 180: fail("LONGITUDE must be between -180 and 180.")

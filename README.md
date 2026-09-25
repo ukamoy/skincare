@@ -8,13 +8,13 @@ Repository **Settings → Secrets and variables → Actions**:
 
 ### Variables
 
-| Variable              |      Example | Description                                |
-| --------------------- | -----------: | ------------------------------------------ |
-| `LATITUDE`          |  `43.6532` | WGS84 latitude                             |
-| `LONGITUDE`         | `-79.3832` | WGS84 longitude                            |
-| `NOTIFICATION_HOUR` |        `7` | Local hour, 0–23                          |
-| `UV_THRESHOLD`      |        `5` | Alert when daily max UV reaches this value |
-| `FORECAST_DAYS`     |        `7` | 1–16                                      |
+| Variable               |      Example | Description                                |
+| ---------------------- | -----------: | ------------------------------------------ |
+| `LATITUDE`           |  `43.6532` | WGS84 latitude                             |
+| `LONGITUDE`          | `-79.3832` | WGS84 longitude                            |
+|  `NOTIFICATION_HOUR` |        `7` | Local hour, 0–23                          |
+| `UV_THRESHOLD`       |        `5` | Alert when daily max UV reaches this value |
+| `FORECAST_DAYS`      |        `7` | 1–16                                      |
 
 ### Secrets
 
