@@ -1,3 +1,7 @@
+import os
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
 from config import Config
 from telegram import send_message
 from weather import fetch_forecast
@@ -29,9 +33,19 @@ def build_message(forecast, threshold: float) -> str:
     return "\n".join(lines)
 
 
+def is_notification_hour(timezone: str, notification_hour: int, now: datetime | None = None) -> bool:
+    if now is None:
+        now = datetime.now(ZoneInfo(timezone))
+    return now.hour == notification_hour
+
+
 def main() -> int:
     config = Config.from_env()
     forecast = fetch_forecast(config.latitude, config.longitude, config.forecast_days)
+    force_alert = os.getenv("FORCE_ALERT", "").lower() == "true"
+    if not force_alert and not is_notification_hour(forecast.timezone, config.notification_hour):
+        print(f"Not the configured notification hour in {forecast.timezone}.")
+        return 0
     risky = [x for x in forecast.daily if x.uv_index >= config.uv_threshold]
     if not risky:
         print(f"No UV alert for the next {config.forecast_days} days.")

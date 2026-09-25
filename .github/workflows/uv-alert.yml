@@ -1,0 +1,31 @@
+name: UV Alert
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  alert:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - name: Check UV forecast
+        env:
+          LATITUDE: ${{ vars.LATITUDE }}
+          LONGITUDE: ${{ vars.LONGITUDE }}
+          UV_THRESHOLD: ${{ vars.UV_THRESHOLD }}
+          FORECAST_DAYS: ${{ vars.FORECAST_DAYS }}
+          NOTIFICATION_HOUR: ${{ vars.NOTIFICATION_HOUR }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          FORCE_ALERT: ${{ github.event_name == 'workflow_dispatch' }}
+        run: python src/main.py
